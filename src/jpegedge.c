@@ -4,6 +4,7 @@
 #include <setjmp.h>
 #include <math.h>
 #include <omp.h>
+#include <sys/time.h>
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 #define MAX(x,y) (((x) > (y)) ? (x) : (y))
@@ -190,7 +191,7 @@ void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image,
     int row, col, rgb;
     omp_set_num_threads(numOfThreads);
 
-    #pragma omp paralled shared(input_image, output_image) private(row, col, rgb)
+    #pragma omp parallel shared(input_image, output_image) private(row, col, rgb)
     {
     #pragma omp for
         for (row = 0; row < input_image->height; row++) {
@@ -212,6 +213,9 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
     /** Read Input Image into RAM **/
     struct rgb_image *input_image = read_input_image(argv[1]);
 
@@ -226,4 +230,7 @@ int main(int argc, char **argv) {
 
     free_image(input_image);
     free_image(output_image);
+
+    gettimeofday(&end, NULL);
+    printf("elapsed: %.2lf\n", ((1000000.0 * (end.tv_sec - start.tv_sec) + (1.0 * (end.tv_usec - start.tv_usec)))/1000000.0));
 }
