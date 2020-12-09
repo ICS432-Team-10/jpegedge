@@ -3,6 +3,7 @@
 #include <jpeglib.h>
 #include <setjmp.h>
 #include <math.h>
+#include <omp.h>
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 #define MAX(x,y) (((x) > (y)) ? (x) : (y))
@@ -185,14 +186,19 @@ unsigned char compute_pixel_value(struct rgb_image *input_image, int row, int co
  * @param input_image: the input image data structure
  * @param output_image: the output image data structure
  */
-void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image) {
+void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image, int numOfThreads) {
     int row, col, rgb;
+    omp_set_num_threads(numOfThreads);
 
-    for (row = 0; row < input_image->height; row++) {
-        for (col = 0; col < input_image->width; col++) {
-            for (rgb=0; rgb < 3; rgb++) {
-                output_image->RGB[rgb][row * input_image->width + col] =
-                        compute_pixel_value(input_image, row, col, rgb);
+    #pragma omp paralled shared(input_image, output_image) private(row, col, rgb)
+    {
+    #pragma omp for
+        for (row = 0; row < input_image->height; row++) {
+            for (col = 0; col < input_image->width; col++) {
+                for (rgb=0; rgb < 3; rgb++) {
+                    output_image->RGB[rgb][row * input_image->width + col] =
+                            compute_pixel_value(input_image, row, col, rgb);
+                }
             }
         }
     }
@@ -201,8 +207,8 @@ void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image)
 int main(int argc, char **argv) {
 
     /** Parse Command-Line Arguments **/
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <input jpg file path> <output jpg file path>\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s <input jpg file path> <output jpg file path> <number of threads>\n", argv[0]);
         exit(1);
     }
 
@@ -213,7 +219,7 @@ int main(int argc, char **argv) {
     struct rgb_image *output_image = create_output_image(input_image);
 
     /** Apply Filter **/
-    apply_filter(input_image, output_image);
+    apply_filter(input_image, output_image, atoi(argv[3]));
 
     /** Save Output Image **/
     write_output_image(output_image, argv[2]);
